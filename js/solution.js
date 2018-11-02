@@ -25,7 +25,7 @@ const errorMessage = document.querySelector('.error__message');
 const errorNode = document.querySelector('.error');
 
 // комментарии 
-const allCommentsForms = document.querySelectorAll('.comments__form');
+const allCommentsForms = document.querySelectorAll('.comments__marker');
 const commentsOnInput = document.querySelector('.comments-on');
 const commentsOffInput = document.querySelector('.comments-off');
 
@@ -322,13 +322,13 @@ function getImageData(id) {
 	xhrGetInfo.send();
 
 	dataGetParse = JSON.parse(xhrGetInfo.responseText);
-	//localStorage.host = `${window.location.origin}${window.location.pathname}?id=${dataGetParse.id}`;
-    curHost = `${window.location.origin}${window.location.pathname}?id=${dataGetParse.id}`;
-	wss();	
+	curHost = `${window.location.origin}${window.location.pathname}?id=${dataGetParse.id}`;
+    localStorage.curHost = curHost;
+    wss();	
 	setcurrentImage(dataGetParse);
 	burger.style.cssText = ``;
 	showMenu();
-	
+	history.pushState(null, null, curHost);// querystring для сохранения данных об изображении
 
 	currentImage.addEventListener('load', () => {
 		hideItem(imageLoader);
@@ -336,6 +336,7 @@ function getImageData(id) {
 		createCanvas();
 		currentImage.dataset.load = 'load';
 		updateCommentForm(dataGetParse.comments);
+        minimizeAllCommentForms();
 	});
 
 	// updateCommentForm(dataGetParse.comments);
@@ -354,8 +355,7 @@ function showMenu() {
 			}
 			
 			if (modeItem.classList.contains('share')) {
-				//menu.querySelector('.menu__url').value = localStorage.host;
-                menu.querySelector('.menu__url').value = curHost;
+				menu.querySelector('.menu__url').value = curHost;
 			}
 		})
 	})
@@ -380,14 +380,16 @@ function setcurrentImage(fileInfo) {
 
 //чекбокс "скрыть комментарии"
 function markerCheckboxOff() {
-	Array.from(allCommentsForms).forEach(form => {
+	const forms = document.querySelectorAll('.comments__form');
+	Array.from(forms).forEach(form => {
 		form.style.display = 'none';
 	 })
 }
 
 //чекбокс "показать комментарии"
 function markerCheckboxOn() {
-	Array.from(allCommentsForms).forEach(form => {
+	const forms = document.querySelectorAll('.comments__form');
+	Array.from(forms).forEach(form => {
 		form.style.display = '';
 	})
 }
@@ -396,6 +398,7 @@ function markerCheckboxOn() {
 function checkComment(event) {
 	if (!(menu.querySelector('.comments').dataset.state === 'selected') || !wrap.querySelector('#comments-on').checked) { return; }
 	wrapCommentsCanvas.appendChild(createCommentForm(event.offsetX, event.offsetY));
+    
 }
 
 //создаем холст для рисования	
@@ -434,10 +437,17 @@ function createWrapforCanvasComment() {
 	// отображаем комментарии (по клику) поверх остальных
 	wrapCommentsCanvas.addEventListener('click', event => {
 		if (event.target.closest('form.comments__form')) {
-			Array.from(wrapCommentsCanvas.querySelectorAll('form.comments__form')).forEach(form => {
+			const curForm = event.target.closest('form.comments__form');
+            Array.from(wrapCommentsCanvas.querySelectorAll('form.comments__form')).forEach(form => {
 				form.style.zIndex = 2;
+                if (form !== curForm) {
+                form.querySelector('.comments__marker-checkbox').checked = false;
+                }
+                
 			});
-			event.target.closest('form.comments__form').style.zIndex = 3;
+			curForm.style.zIndex = 3;
+            deleteAllBlankCommentFormsExcept(curForm);
+            
 		}
 	});
 }
@@ -470,16 +480,23 @@ function createCommentForm(x, y) {
 	formComment.style.cssText = `
 		top: ${top}px;
 		left: ${left}px;
-		z-index: 2;
+		z-index: 5;
 	`;
 	formComment.dataset.left = left;
 	formComment.dataset.top = top;
+    minimizeAllCommentForms(formComment);
+    deleteAllBlankCommentFormsExcept(formComment)
     formComment.querySelector('.comments__marker-checkbox').checked = true;
 	hideItem(formComment.querySelector('.loader').parentElement);
 
 	//кнопка "закрыть"
     formComment.querySelector('.comments__close').addEventListener('click', () => {
-		formComment.querySelector('.comments__marker-checkbox').checked = false;
+        if (formComment.querySelectorAll('.comment').length > 1) {
+            formComment.querySelector('.comments__marker-checkbox').checked = false;
+        } else {
+            // если комментариев нет, удалаем форму
+            formComment.remove();
+        }
 	});
 
 	// кнопка "отправить"
@@ -515,7 +532,7 @@ function createCommentForm(x, y) {
 		fetch(`${urlApi}/pic/${dataGetParse.id}/comments`, {
 				method: 'POST',
 				body: message,
-				headers: {
+                headers: {
 					'Content-Type': 'application/x-www-form-urlencoded'
 				},
 			})
@@ -549,8 +566,11 @@ function addMessageComment(message, form) {
 	newMessageDiv.appendChild(commentTimeP);
 
 	const commentMessageP = document.createElement('p');
+    const commentMessagePre = document.createElement('pre');
 	commentMessageP.classList.add('comment__message');
-	commentMessageP.textContent = message.message;
+	commentMessagePre.textContent = message.message;
+    //commentMessageP.innerText = message.message.replace('↵','<br>');
+    commentMessageP.appendChild(commentMessagePre);
 	newMessageDiv.appendChild(commentMessageP);
 
 	form.querySelector('.comments__body').insertBefore(newMessageDiv, parentLoaderDiv);
@@ -601,8 +621,28 @@ function insertWssCommentForm(wssComment) {
 	wsCommentEdited[wssComment.id].timestamp = wssComment.timestamp;
 	wsCommentEdited[wssComment.id].top = wssComment.top;
 	updateCommentForm(wsCommentEdited);
+   
 }
 
+// сворачиваем все пустые комментарии, кроме текущего
+function minimizeAllCommentForms(currentForm = null) {
+    document.querySelectorAll('.comments__form').forEach(form => {
+        if (form !== currentForm) {
+            // если выбран не текущий комментарий, сворачиваем его
+            form.querySelector('.comments__marker-checkbox').checked = false;
+        }
+    });
+}
+
+// удаляем все пустые комментарии, кроме текущего
+function deleteAllBlankCommentFormsExcept(currentForm = null) {
+    document.querySelectorAll('.comments__form').forEach(form => {
+        if (form.querySelectorAll('.comment').length < 2 && form !== currentForm) {
+            // если комментариев нет, и выбран не текущий комментарий, удалаем форму
+            form.remove();
+        }
+    });
+}
 // веб-сокет
 function wss() {
 	connection = new WebSocket(`wss://neto-api.herokuapp.com/pic/${dataGetParse.id}`);
