@@ -139,10 +139,6 @@ function showMenu() {
                 menu.dataset.state = 'selected';
                 modeItem.dataset.state = 'selected';
             }
-
-            if (modeItem.classList.contains('share')) {
-                menu.querySelector('.menu__url').value = curHost;
-            }
         })
     })
 }
@@ -170,7 +166,7 @@ function urlId(id) {
         return;
     }
     getImageData(id);
-    showMenuComments();
+    showMenuShare();
 }
 
 

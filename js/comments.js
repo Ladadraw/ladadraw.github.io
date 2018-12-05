@@ -1,18 +1,5 @@
 'use strict';
 
-// показываем меню "Комментарии"
-function showMenuComments() {
-    menu.dataset.state = 'default';
-    Array.from(menu.querySelectorAll('.mode')).forEach(modeItem => {
-        if (!modeItem.classList.contains('comments')) {
-            return;
-        }
-
-        menu.dataset.state = 'selected';
-        modeItem.dataset.state = 'selected';
-    })
-}
-
 // добавляем фон 
 function setcurrentImage(fileInfo) {
     currentImage.src = fileInfo.url;
@@ -216,7 +203,7 @@ function updateCommentForm(newComment) {
         Array.from(wrap.querySelectorAll('.comments__form')).forEach(form => {
 
             //добавляем сообщение в форму с заданными координатами left и top
-            if (+form.dataset.left === showComments[id].left && +form.dataset.top === showComments[id].top) {
+            if (Number(form.dataset.left) === showComments[id].left && Number(form.dataset.top) === showComments[id].top) {
                 form.querySelector('.loader').parentElement.style.display = 'none';
                 addMessageComment(newComment[id], form);
                 needCreateNewForm = false;

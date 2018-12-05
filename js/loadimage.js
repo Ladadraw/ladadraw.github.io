@@ -105,9 +105,9 @@ function getImageData(id) {
     wss();
     setcurrentImage(dataGetParse);
     burger.style.cssText = ``;
-    showMenu();
+    //showMenu();
     history.pushState(null, null, curHost); // querystring для сохранения данных об изображении
-
+    showMenuShare();
     currentImage.addEventListener('load', () => {
         hideItem(imageLoader);
         createWrapforCanvasComment();
@@ -125,4 +125,19 @@ function delExtension(inputText) {
     let regExp = new RegExp(/\.[^.]+$/gi);
 
     return inputText.replace(regExp, '');
+}
+
+// показываем меню "Поделиться"
+function showMenuShare() {
+    console.log('showMenuShare')
+    menu.dataset.state = 'default';
+    Array.from(menu.querySelectorAll('.mode')).forEach(modeItem => {
+        if (!modeItem.classList.contains('share')) {
+             menu.querySelector('.menu__url').value = curHost;
+            return;
+        }
+
+        menu.dataset.state = 'selected';
+        modeItem.dataset.state = 'selected';
+    })
 }
